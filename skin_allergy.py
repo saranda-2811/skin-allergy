@@ -83,28 +83,61 @@ backbone=tf.keras.applications.VGG16(
 
 backbone.trainable = False
 
-#sexy model
+learning_rate_reduction = ReduceLROnPlateau(monitor='val_acc', 
+                                            patience=5, 
+                                            verbose=1, 
+                                            factor=0.5, 
+                                            min_lr=1e-7)
 
-model = tf.keras.models.Sequential()
-model.add(backbone)
-model.add(tf.keras.layers.MaxPooling2D(2,2))
-model.add(tf.keras.layers.Dropout(0.2))
-model.add(tf.keras.layers.Flatten())
-model.add(tf.keras.layers.Dense(250,activation='relu'))
-model.add(tf.keras.layers.Dropout(0.3))
-model.add(tf.keras.layers.Dense(150,activation='relu'))
-model.add(tf.keras.layers.Dropout(0.2))
-model.add(tf.keras.layers.Dense(50,activation='relu'))
-model.add(tf.keras.layers.Dropout(0.3))
-model.add(tf.keras.layers.Dense(35, activation='softmax'))
+#ResNet50
+input_shape=(80,80,3)
+lr = 1e-5
+epochs = 50
+batch_size = 64
 
+model = ResNet50(include_top=True,
+                 weights= None,
+                 input_tensor=None,
+                 input_shape=input_shape,
+                 pooling='avg',
+                 classes=2)
 
-model.compile(loss='sparse_categorical_crossentropy',optimizer='adam', metrics=['acc'])
+model.compile(optimizer = Adam(lr) ,
+              loss = "binary_crossentropy", 
+              metrics=["accuracy"])
 
+history = model.fit(x, y, validation_split=0.2,
+                    epochs= epochs, batch_size= batch_size, verbose=2, 
+                    callbacks=[learning_rate_reduction]
+                   )
 
-    
+# list all data in history
+print(history.history.keys())
+# summarize history for accuracy
+plt.plot(history.history['acc'])
+plt.plot(history.history['val_acc'])
+plt.title('model accuracy')
+plt.ylabel('accuracy')
+plt.xlabel('epoch')
+plt.legend(['train', 'test'], loc='upper left')
+plt.show()
+# summarize history for loss
+plt.plot(history.history['loss'])
+plt.plot(history.history['val_loss'])
+plt.title('model loss')
+plt.ylabel('loss')
+plt.xlabel('epoch')
+plt.legend(['train', 'test'], loc='upper left')
+plt.show()
 
 model.summary()
+
+
+model.fit(x, y,
+          epochs=epochs, batch_size= epochs, verbose=0,
+          callbacks=[learning_rate_reduction]
+         )
+
 
 checkpoint_path = "training_2/cp-{epoch:04d}.ckpt"
 checkpoint_dir = os.path.dirname(checkpoint_path)
@@ -129,22 +162,6 @@ history = model.fit(train_data,train_label,
                     validation_split=0.2,
                     callbacks=[cp_callback])
 
-import matplotlib.pyplot as plt
-plt.plot(history.history['acc'])
-plt.plot(history.history['val_acc'])
-plt.title('model accuracy')
-plt.ylabel('accuracy')
-plt.xlabel('epoch')
-plt.legend(['train', 'test'], loc='upper left')
-plt.show()
-# summarize history for loss
-plt.plot(history.history['loss'])
-plt.plot(history.history['val_loss'])
-plt.title('model loss')
-plt.ylabel('loss')
-plt.xlabel('epoch')
-plt.legend(['train', 'test'], loc='upper left')
-plt.show()
 
 pred_image=image.load_img('')
 gray_pred=cv2.resize(np.float32(pred_image),(100,100))
